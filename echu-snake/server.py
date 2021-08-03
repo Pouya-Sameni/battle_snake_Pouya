@@ -38,7 +38,7 @@ def handle_start():
     request.json contains information about the game that's about to be played.
     """
     data = request.get_json()
-    server_logic.init_matrices(data)
+    server_logic.init_maps(data)
 
     print(f"{data['game']['id']} START")
     return "ok"
