@@ -117,7 +117,7 @@ def go_for_food(data: dict, my_head: Dict[str, int], possible_moves: List[str]) 
     
     return possible_moves
 
-def final_check (data: dict, my_head: Dict[str, int], possible_moves: List[str]):
+def final_check (data: dict, my_head: Dict[str, int], possible_moves: List[str])-> List[str]:
    
 
   for other_snakes in data["board"]["snakes"]:
@@ -166,7 +166,7 @@ def final_check (data: dict, my_head: Dict[str, int], possible_moves: List[str])
 
     return possible_moves 
 
-def go_to_corner (data: dict, my_head: Dict[str, int], possible_moves: dict):
+def go_to_corner (data: dict, my_head: Dict[str, int], possible_moves: dict)-> List[str]:
     
     if my_head["x"] <= 5 and my_head["y"] <= 5:
       x_cord = 0
@@ -184,58 +184,50 @@ def go_to_corner (data: dict, my_head: Dict[str, int], possible_moves: dict):
     if "left" in possible_moves and len(possible_moves) > 1:
       if x_cord > my_head["x"]:
         possible_moves["left"] = possible_moves["left"]+1
-        possible_moves.append("left")
 
     if "right" in possible_moves and len(possible_moves) > 1:
       if x_cord <= my_head["x"]:
         possible_moves["right"] = possible_moves["right"]+1
-        possible_moves.append("right")
 
     if "down" in possible_moves and len(possible_moves) > 1:
       if y_cord > my_head["y"]:
         possible_moves["down"] = possible_moves["down"]+1
-        possible_moves.append("down")
 
     if "up" in possible_moves and len(possible_moves) > 1:
       if y_cord <= my_head["y"]:
         possible_moves["up"] = possible_moves["up"]+1
-        possible_moves.append("up")
 
-def choose_move(data: dict) -> str:
-   
+    return possible_moves
+
+def move_picker (data:dict, possible_moves:dict):
+
     my_head = data["you"]["head"]  
 
     my_body = data["you"]["body"]  
 
-    possible_moves = {"up":0, "down":0, "left":0, "right":0}
-
-    # Don't allow your Battlesnake to move back in on it's own neck
     possible_moves = avoid_my_neck(my_head, my_body, possible_moves)
-    
   
-    # TODO: Using information from 'data', find the edges of the board and don't let your Battlesnake move beyond them
     possible_moves = avoid_boundaries(my_head, my_body, possible_moves, data)
 
-    # TODO Using information from 'data', don't let your Battlesnake pick a move that would hit its own body
-    
-    # TODO: Using information from 'data', don't let your Battlesnake pick a move that would collide with another Battlesnake
     possible_moves = avoid_my_body(my_head, my_body, possible_moves)
 
-    # TODO: Using information from 'data', make your Battlesnake move towards a piece of food on the board
-   
     possible_moves = avoid_other_snakes( my_head, data, possible_moves)
 
     possible_moves = final_check(data, my_head, possible_moves)
     
     if data["you"]["health"] <= 30:
       possible_moves = go_for_food(data, my_head, possible_moves)
-    # else:
-    #   possible_moves = go_to_corner(data, my_head, possible_moves)
+    
+    return possible_moves
+    print ("List: " + str(possible_moves)) 
 
-    # Choose a random direction from the remaining possible_moves to move in, and then return that move
-    print ("List: " + str(possible_moves))
+    
+
+def choose_move(data: dict) -> str:
+   
+    possible_moves = {"up":0, "down":0, "left":0, "right":0}
+    possible_moves = move_picker(data, possible_moves)
     move = min(possible_moves, key=possible_moves.get)
-    # TODO: Explore new strategies for picking a move that are better than random
 
     print(f"{data['game']['id']} MOVE {data['turn']}: {move} picked from all valid options in {possible_moves}")
 
