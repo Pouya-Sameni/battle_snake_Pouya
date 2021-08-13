@@ -4,11 +4,8 @@ from typing import List, Dict;
 from collections import namedtuple;
 import queue;
 
-q = queue.Queue
-q.empty
-
 Point = namedtuple('Point', ['x', 'y'])
-
+def strpt(pt: Point) -> str: return '[' + str(pt.x) + ',' + str(pt.y) + ']';
 # Move = NamedTuple('Move', 'up down left right')
 
 # MAPS/MATRICES
@@ -37,21 +34,43 @@ def choose_move(data: dict) -> str:
   update_maps_immediate(data);
 
   my_head: Point = Point(data['you']['head']['x'], data['you']['head']['y']);
+  my_neck: Point = Point(data['you']['body'][1]['x'], data['you']['body'][1]['y']);
+
   next_heads: List[Point] = neighbors(my_head, data['board']['width'], data['board']['height']);
   print(f'{next_heads} = moves on the board');
 
-  consider = remove_death_moves(next_heads, DEATH_BODY)
+  consider = remove_death_moves(next_heads, DEATH_BODY);
   if len(consider): 
     next_heads = consider;
     print(f'{next_heads} = minus death by body');
-  consider = remove_death_moves(next_heads, DANGER_HEAD)
+  consider = remove_death_moves(next_heads, DANGER_HEAD);
   if len(consider): 
     next_heads = consider;
     print(f'{next_heads} = minus danger by head');
-  consider = discourage_edges(next_heads, data['board']['width'], data['board']['height']);
-  if len(consider): 
-    next_heads = consider;
-    print(f'{next_heads} = minus edge discourage');
+  
+  if (len(next_heads) > 1):
+    consider = remove_traps(my_head, my_neck, next_heads, len(data['you']['body']));
+    if len(consider): 
+      next_heads = consider;
+      print(f'{next_heads} = minus traps');
+
+  if (len(next_heads) > 1):
+    consider = encourage_kill(my_head, next_heads);
+    if len(consider): 
+      next_heads = consider;
+      print(f'{next_heads} = minus traps');
+
+  if (len(next_heads) > 1 and data['you']['health'] < 50):
+    consider = encourage_food(my_head, next_heads);
+    if len(consider): 
+      next_heads = consider;
+      print(f'{next_heads} = minus traps');
+
+  if (len(next_heads) > 1):
+    consider = discourage_edges(next_heads, data['board']['width'], data['board']['height']);
+    if len(consider): 
+      next_heads = consider;
+      print(f'{next_heads} = minus edge discourage');
 
   
   # TODO: Using information from 'data', make your Battlesnake move towards a piece of food on the board
@@ -167,6 +186,89 @@ def remove_death_moves(next_heads: List[Point], death_type: int) -> List[Point]:
   ret: List[Point] = [];
   for nh in next_heads:
     if danger_map[nh.x][nh.y] > death_type:
+      ret.append(nh);
+  return ret;
+
+def remove_traps(head: Point, neck, next_heads: List[Point], snake_length: int) -> List[Point]:
+  ahead_dir: str = to_direction(neck, head);
+  behind_dir: str = to_direction(head, neck);
+  sides = ['up', 'down', 'left', 'right'];
+  if ahead_dir in sides:
+    sides.remove(ahead_dir);
+  if behind_dir in sides:
+    sides.remove(behind_dir);
+  side1_dir = sides[0];
+  side2_dir = sides[1];
+
+  pt_ahead: Point = globals()[ahead_dir](head);
+  pt_s1: Point = globals()[side1_dir](head);
+  pt_s2: Point = globals()[side2_dir](head);
+  pt_a_s1: Point = globals()[ahead_dir](pt_s1);
+  pt_a_s2: Point = globals()[ahead_dir](pt_s1);
+  '''
++------+-------+----
+|      |  s1   | a_s1  
++------+-------+----
+|[][][][][][]< | ahead 
++------+-------+----
+|      |  s2   | a_s2  
++------+-------+----
+  '''
+  space_s1 = 0;
+  space_ahead = 0;
+  space_s2 = 0;
+
+  # there will be at least 2 and at most 3 next_heads in the list
+  if pt_ahead not in next_heads: # side1, side2, or dead
+    space_s1 = floodfill_init(pt_s1);
+    space_s2 = floodfill_init(pt_s2);
+  else:
+    space_ahead = floodfill_init(pt_ahead);
+    if pt_s1 in next_heads:
+      space_s1 = floodfill_init(pt_s1);
+    if pt_s2 in next_heads:
+      space_s2 = floodfill_init(pt_s2);
+
+  ret: List[Point] = [];
+  if space_ahead >= space_s1 and space_ahead >= space_s2:
+    ret.append(space_ahead);
+  if space_s1 >= space_ahead and space_s1 >= space_s2:
+    ret.append(space_s1);
+  if space_s2 >= space_s1 and space_s2 >= space_ahead:
+    ret.append(space_s2);
+    
+  return ret;
+
+def floodfill_init(point: Point):
+  visited: List[List[bool]] = [[False]*len(danger_map[0]) for i in range(len(danger_map))];
+  q = queue.Queue()
+  q.put(point);
+  visited[point.x][point.y] = True;
+  return floodfill(point, q, visited)
+
+def floodfill(point: Point, q, visited: List[List[bool]]):
+  total = 0;
+  while not q.empty:
+    nbrs = neighbors(point, len(visited), len(visited[0]))
+    for n in nbrs:
+      visited[n.x][n.y] = True;
+      if not (visited[n.x][n.y] or danger_map[n.x][n.y] < 0):
+        q.put(n);
+  print('hi')
+  return 1 + floodfill(q.get(), q, visited);
+
+
+def encourage_food(head, next_heads):
+  ret: List[Point] = [];
+  for nh in next_heads:
+    if eat_map[nh.x][nh.y] == FOOD:
+      ret.append(nh);
+  return ret;
+
+def encourage_kill(head, next_heads):
+  ret: List[Point] = [];
+  for nh in next_heads:
+    if eat_map[nh.x][nh.y] == KILL_HEAD:
       ret.append(nh);
   return ret;
 
